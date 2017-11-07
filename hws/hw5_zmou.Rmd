@@ -1,0 +1,158 @@
+---
+title: 'STAT 500: HW6'
+author: "Jasmine Mou"
+date: "11/7/2017"
+output: pdf_document
+---
+1. Using the `stackloss` data, fit a model with `stack.loss` as the response and the other three variables as predictors using the following methods:
+```{r}
+data(stackloss,package="datasets")
+```
+(a) Least squares
+```{r}
+lm_stackloss <- lm(stack.loss~., data=stackloss)
+summary(lm_stackloss)
+```
+
+(b) Least absolute deviations 
+```{r message=FALSE, warning=FALSE}
+library(quantreg)
+rq_stackloss <- rq(stack.loss~., data=stackloss)
+summary(rq_stackloss)
+```
+
+(c) Huber method
+```{r}
+library(MASS)
+rlm_stackloss <- rlm(stack.loss~., data=stackloss)
+summary(rlm_stackloss)
+```
+
+(d) Least trimmed squares
+```{r}
+ltsreg_stackloss <- ltsreg(stack.loss~., data=stackloss, nsamp="exact")
+ltsreg_stackloss
+```
+
+Compare the results.     
+*The variable `Acid.Conc.` has large p-value in Least Square, small confidence interval around 0 in LAD, small t-value in Huber method, and very small coefficient value in Least Trimmed Squares -- all indicate that `Acid.Conc` is not significant in influencing the `stack.loss`. Let's compare different models by checking the constant variance assumption for the errors and the normality assumptions. From the plots we can see both Least Squares and Huber methods are significantly influenced by outlier.*
+```{r, fig.width=8, fig.height=3, echo=FALSE}
+## define plotting functions
+plot_residuals <- function(model, model_name){
+  par(mfrow=c(1,2))
+  ## Residuals vs Fitted
+  par(col.lab="white")
+  plot(model, which=1)
+  par(col.lab="black")
+  title(xlab=paste("Fitted Values (", model_name, ")", sep=""), ylab="Residuals")
+
+  ## Q-Q Plot
+  par(col.lab="white")
+  plot(model, which=2)
+  par(col.lab="black")
+  title(xlab=paste("Theoretical Quantiles (", model_name, ")", sep=""), ylab="Residuals")
+}
+
+plot_residuals_customized <- function(model, model_name, model_func){
+  par(mfrow=c(1,2))
+  ## Residuals vs Fitted
+  plot(fitted(model), residuals(model), xlab=paste("Fitted Values (", model_name, ")\n", model_func, sep=""), ylab="Residuals", main="Residuals vs Fitted", font.main=1)
+  abline(h=0, lty=3, col="gray")
+  panel.smooth(x=fitted(model), y=residuals(model))
+  
+  ## Q-Q Plot
+  qqnorm(residuals(model), xlab=paste("Theoretical Quantiles (", model_name, ")\n", model_func, sep=""), ylab="Residuals", main="Normal Q-Q", font.main=1)
+  qqline(residuals(model), lty=3)
+}
+
+## least squares
+plot_residuals(lm_stackloss, "Least Squares")
+
+## Huber
+plot_residuals(rlm_stackloss, "Huber")
+
+## LAD
+plot_residuals_customized(rq_stackloss, "LAD", "rq(stack.loss ~.)")
+
+## least trimmed results
+plot_residuals_customized(ltsreg_stackloss, "Least Trimmed Results", "ltsreg(stack.loss~.)")
+```
+
+Now use diagnostic methods to detect any outliers or influential points.     
+*To find the influential points, use Cook's distance to check. We can find that the observation #21 is an influential point/outlier.  *
+
+```{r}
+n <- dim(stackloss)[1]
+p <- dim(stackloss)[2] 
+cook <- cooks.distance(lm_stackloss)
+cook[which(cook>4/(n-p-1))]
+```
+*Plot the half-normal quantiles of the Cook Statistics to verify observation #21 is an outlier.*
+
+```{r, fig.width=4, fig.height=3, echo=FALSE}
+faraway::halfnorm(cook, 2, ylab="Cook's distances")
+```
+
+Remove these points and then use least squares. Compare the results.    
+*Remove observation #21 and apply least squares. We can see the new Adjusted $R^2$ has rised from 0.8983 to 0.9392. *
+```{r}
+lm_stackloss_wo_outlier <- lm(formula(lm_stackloss), data=stackloss[-c(21),])
+summary(lm_stackloss_wo_outlier)
+```
+
+
+2. For the `fat` data used in this chapter, a smaller model using only `age`, `weight`, `height` and `abdom` was proposed on the grounds that these predictors are either known by the individual or easily measured.
+(a) Compare this model to the full thirteen-predictor model used earlier in the chapter. Is it justifiable to use the smaller model?    
+*Conduct the ANOVA test. Suppose the null hypothesis is it's enough to use the smaller model, and the alternative hypothesis is that predictors should also include another 9 predictors other than the ones in small model. As the p-value for F-test is 0.002558 < 0.05, we have enough evidence to reject the null hypothesis. Thus it is not justifiable to use the smaller model, and the other 9 predictors in the full thirteen-predictor model are still useful.*
+```{r, echo=FALSE}
+data(fat, package="faraway")
+lm_fat_reduced <- lm(brozek ~ age + weight + height + abdom, data=fat)
+lm_fat_full <- lm(brozek ~ age + weight + height + neck + chest + abdom +
+hip + thigh + knee + ankle + biceps + forearm + wrist, data=fat)
+anova(lm_fat_reduced, lm_fat_full)
+```
+
+(c) For the smaller model, examine all the observations from case numbers 25 to 50. Which two observations seem particularly anomalous?      
+*From the Cook's distance, we can see the observations #42 and #39 seem particularly anomalous.*    
+
+```{r, fig.width=4, fig.height=3, echo=FALSE}
+cook <- cooks.distance(lm_fat_reduced)
+faraway::halfnorm(cook, 2, ylab="Cook's distances")
+```
+
+
+3. Use the `fat` data, fitting the model described in Section 4.2.    
+*See 2(a) for modeling fitting in `lm_fat_full`.*
+(a) Fit the same model but now using Huber’s robust method. Comment on any substantial differences between this model and the least squares fit.
+```{r}
+rlm_fat_full <- rlm(brozek ~ age + weight + height + neck + chest + abdom +
+hip + thigh + knee + ankle + biceps + forearm + wrist, data=fat)
+summary(lm_fat_full)
+summary(rlm_fat_full)
+```
+*The predictors `abdom`, `wrist`, `forearm`, and `age` are top 4 significant predictors in Huber's robust method, while `age` predictor has a p-value > 0.05 in least square method, which making it not being significant. The residual standard error of least square method is 3.988 while that one in Huber's robust method is 4.073. *
+
+(b) Identify which two cases have the lowest weights in the Huber fit. What is unusual about these two points?    
+*Observations #224 and #207 have the lowest weights in the Huber fit. These two points look deviate a little bit from the projected trend. *
+```{r, echo=FALSE}
+wts <- rlm_fat_full$w
+names(wts) <- row.names(fat)
+head(sort(wts), 2)
+```
+
+```{r, fig.width=4, fig.height=3, echo=FALSE}
+i <- c(207,224)
+poi <- fat[i,]
+plot(poi$brozek, lm_fat_full$fitted.values[i], xlim=c(0,50), ylim=c(0,50), xlab="brozek", ylab="Fitted Values")
+text(poi$brozek, lm_fat_full$fitted.values[i]+.1, i, col="red", cex=0.8)
+points(fat$brozek, lm_fat_full$fitted.values)
+```
+
+(c) Plot weight (of the man) against height. Identify the two outlying cases. Are these the same as those identified in the previous question? Discuss.    
+*The two outlying cases are #42 and #39. They are different from the ones identified in the previous questions. As in previous questions, we are looking at the fitted values for variable `brozek` given 13 predictors, while in this question we are simply assuming a linear relationship between variable `weight` and `height` before looking for outliers that don't fit this relationship. *    
+```{r, fig.width=4, fig.height=3, echo=FALSE}
+attach(fat)
+plot(height, weight)
+text(height, weight, row.names(fat), cex=0.5, pos=4, col="red")
+```
+

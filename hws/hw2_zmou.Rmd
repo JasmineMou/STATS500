@@ -1,0 +1,69 @@
+---
+title: 'STAT 500: HW2'
+author: "Jasmine Mou"
+date: "9/26/2017"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+1. The dataset `teengamb` concerns a study of teenage gambling in Britain. Fit a regression model with the expenditure on gambling as the response and the `sex`, `status`, `income` and `verbal` score as predictors. Present the output.
+```{r}
+data(teengamb, package='faraway')
+lm_teengamb <- lm(gamble ~ sex + status + income + verbal, data=teengamb)
+summary(lm_teengamb)
+```
+
+(a) What percentage of variation in the response is explained by these predictors?  
+*From the summary result we get 52.67% of variation in the response is explained by these predictors.*   
+
+(b) Which observation has the largest (positive) residual? Give the case number.  
+*From the residuals we get the one with the largest (positive) residual is the case `r which.max(lm_teengamb$residuals)[[1]]`.*   
+
+(c) Compute the mean and median of the residuals.    
+*Mean of the residuals is about `r round(mean(lm_teengamb$residuals), digits=4)`. Median of the residuals is about $`r round(median(lm_teengamb$residuals), digits=4)`$ (rounded by 4 digits).*  
+
+(d) Compute the correlation of the residuals with the fitted values.  
+*The correlation of the residuals with the fitted values is $`r cor(lm_teengamb$residuals, lm_teengamb$fitted)`$.*
+
+(e) Compute the correlation of the residuals with the income.  
+*The correlation of the residuals with the income is $`r cor(lm_teengamb$residuals, teengamb$income)`$.*
+
+(f) For all other predictors held constant, what would be the difference in predicted expenditure on gambling for a male compared to a female?  
+*As sex=0 represents male and sex=1 represents female, we can check the difference of interest for a female compared to a male from the estimate of coefficients in sex is `r lm_teengamb$coefficients[["sex"]]`.*
+
+
+2. An experiment was conducted to determine the effect of four factors on the resistivity of a semiconductor `wafer`. 
+The data is found in wafer where each of the four factors is coded as - or + depending on whether the low or the high setting for that factor was used. Fit the linear model `resist` \textasciitilde{} `x1 + x2 + x3 + x4`.  
+
+```{r}
+data(wafer, package='faraway')
+lm_wafer <- lm(resist ~ x1 + x2 + x3 + x4, data=wafer)
+```
+
+(a) Extract the X matrix using the `model.matrix` function. Examine this to determine how the low and high levels have been coded in the model.
+```{r}
+X <- model.matrix(~ x1 + x2 + x3 + x4, wafer)
+```
+*Here the low ("-") becomes 0 and high ("+") becomes 1 in the extracted X matrix.*
+
+(b) Compute the correlation in the X matrix. Why are there some missing values in the matrix?
+```{r}
+cor(X)
+```
+*There are missing values in the matrix as the standard deviations of intercepts, which will be the denominators in the correlation calculation formula, are 0s.*
+
+(c) What difference in resistance is expected when moving from the low to the high level of `x1`?  
+*From the coefficients values in the linear model, we get the expected difference in resistance when moving from the low to the high of `x1` is `r lm_wafer$coefficients[["x1+"]]`. *
+
+(d) Refit the model without `x4` and examine the regression coefficients and standard errors? What stayed the same as the original fit and what changed?
+```{r}
+lm_wafer_refit <- lm(resist ~ x1 + x2 + x3, data=wafer)
+summary(lm_wafer_refit)
+```
+*What remains the same: estimated coefficients of `x1+`, `x2+`, `x3+`. What changes: the estimated coefficients of the intercept, which increases in the amount of about the half of estimated coefficients of `x4+` in the original model; and the standard errors of the intercept, `x1+`, `x2+`, `x3+`. *
+
+(e) Explain how the change in the regression coefficients is related to the correlation matrix of X.  
+*As there is no changes in the regression coefficients of `x1+`, `x2+`, `x3+` before and after adding `x4+`, meaning that `x4+` has no correlations with the rest predictors being held. This relationship has been verified by the correlation matrix of X, in which the correlation values between `x4+` and all other predictors are 0s.*
+
+

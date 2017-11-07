@@ -1,0 +1,76 @@
+---
+title: 'STAT 500: HW6'
+author: "Jasmine Mou"
+date: "11/7/2017"
+output: pdf_document
+---
+
+1. Using the `ozone` data, fit a model with `O3` as the response and `temp`, `humidity` and  `ibh` as predictors. Use the Box–Cox method to determine the best transformation on the response.  
+```{r message=FALSE}
+require(MASS)
+data(ozone, package="faraway")
+lm_ozone <- lm(O3 ~ temp + humidity + ibh, data=ozone)
+```
+*Check whether the response needs transformation and plot the results. The first plot is too broad so we narrow down the range of $\lambda$ in the second plot. * 
+```{r, fig.width=8, fig.height=3}
+par(mfrow=c(1,2))
+boxcox(lm_ozone, plotit=T)
+boxcox(lm_ozone, plotit=T, lambda=seq(0.1,0.4,by=0.05))
+```
+*The $\lambda$ that optimizes the log-Likelihood is picked at some point between 0.25 and 0.30, with 95% confidence interval being ~ (0.15,0.4), which is far from and excludes 1. Thus we need the tranformation. Let's pick $\hat{\lambda}$ being 0.28. *
+```{r}
+lambda_hat <- 0.28
+lm_ozone_transformed_response <- lm(O3^lambda_hat ~ temp + humidity + ibh, data=ozone)
+summary(lm_ozone)
+summary(lm_ozone_transformed_response)
+```
+*By comparing the summary results of models before and after the transformation, we can see that the residual standard error has been reduced from 4.524 to 0.2071, and the adjusted $R^2$ has rised from 0.6811 to 0.7136. Thus the tranformed model for `O3` is: $$O3 ^ {`r lambda_hat`} = -0.1049 + 0.3296 * temp + 0.0774 * humidity - 0.001 * ibh$$ *
+
+2. Use the `pressure` data to fit a model with `pressure` as the response and `temperature` as the predictor using transformations to obtain a good fit.    
+*Plot `pressure` versus `temperature` and find out there seems existing polynomial relationship between them. Construct orthognoal polynomials of `temperature` up to power of 10.*
+```{r, fig.width=4, fig.height=3}
+data(pressure)
+plot(x=pressure$temperature, y=pressure$pressure, xlab="temperature", ylab="pressure")
+lm_pressure <- lm(pressure ~ poly(temperature,10), data=pressure)
+summary(lm_pressure)
+```
+*By checking summary statistics, the p-value of terms to the power below 8 are all significant (<0.05). Thus the fitted model of pressure with temperature will be (P: `pressure`, T: `temperature`): 
+$$P = `r round(lm_pressure$coefficients[1],2)` + 
+`r round(lm_pressure$coefficients[2],2)`*T + 
+`r round(lm_pressure$coefficients[3],2)`*T^2 + 
+`r round(lm_pressure$coefficients[4],2)`*T^3 + 
+`r round(lm_pressure$coefficients[5],2)`*T^4 + 
+`r round(lm_pressure$coefficients[6],2)`*T^5 + 
+`r round(lm_pressure$coefficients[7],2)`*T^6 + 
+`r round(lm_pressure$coefficients[8],2)`*T^7 $$*  
+
+3. Use the `cars` data with distance as the response and speed as the predictor.
+(a) Plot `dist` against `speed`.
+(b) Show a linear fit to the data on the plot.
+(c) Show a quadratic fit to the data on the plot.
+(d) Now use `sqrt(dist)` as the response and fit a linear model. Show the fit on the same plot. 
+```{r, fig.width=5, fig.height=3.5}
+data(cars)
+lm_cars_linear <- lm(dist~speed, data=cars)
+lm_cars_quad <- lm(dist~speed+I(speed^2), data=cars)
+lm_cars_sqrt <- lm(sqrt(dist)~speed, data=cars)
+
+bind<-cbind(cars$dist, lm_cars_quad$fit, lm_cars_linear$fit, lm_cars_sqrt$fit)
+matplot(cars$speed, bind, type="plll", pch=1, lty=c(1,2,5,3), 
+        xlab="speed", ylab="distance", main="Speed v.s. Distance")
+legend(x=3.5,y=123, legend=c("original", "quadratic", "linear", "sqrt"), 
+       lty=c(NA,5,2,3), pch=c(1,NA,NA,NA), col=seq_len(ncol(bind)))
+```     
+
+(e) Compute the default smoothing spline fit to the plot and display on a fresh plot of the data. How does it compare to the previous fits?    
+```{r, warning=FALSE, fig.width=5, fig.height=3.5}
+library(splines)
+ssf <- smooth.spline(cars$speed, cars$dist)
+bind_smooth <- cbind(cars$dist, ssf$y)
+matplot(cars$speed, bind_smooth, type="pl", pch=1, lty=1, 
+        xlab="speed", ylab="distance", main="Speed v.s. Distance")
+legend(x=3.5,y=123, legend=c("original", "smooth_spline"), 
+       lty=c(NA,1), pch=c(1,NA), col=seq_len(ncol(bind_smooth)))
+```    
+
+*Compared to the previous fits, though smoothing spline fit captures the points of inflexion, the valleys before `speed`=15 and after `speed`=20 is fit too roughly.*

@@ -1,0 +1,109 @@
+---
+title: 'STAT 500: HW3'
+author: "Jasmine Mou"
+date: "10/03/2017"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+---
+
+1. Using the `teengamb` data, fit a model with `gamble` as the response and the other variables as predictors. 
+
+```{r 1}
+data(teengamb, package='faraway')
+# teengamb$sex <- factor(teengamb$sex, levels=c(0,1))
+lm_teengamb <- lm(gamble~., data=teengamb)
+summary(lm_teengamb)
+```
+
+(a) Which variables are statistically significant at the 5% level?  
+*Variables `sex` and `verbal` are statistically significant at the 5% level.*
+
+(b) What interpretation should be given to the coefficient for `sex`?   
+*A female is expected to spend 22.12 less on gambling in pounds per year compared to a male, given their performance on 'status', 'income', 'verbal' are all the same.*
+
+(c) Fit a model with just `income` as a predictor and use an F-test to compare it to the full model.  
+
+```{r}
+lm_teengamb_income <- lm(gamble~income, data=teengamb)
+anova(lm_teengamb_income, lm_teengamb)
+```
+*Suppose the null hypothesis is it's enough to just use variable `income` as the predictor, and alternative hypothesis is predictors should include `sex`, `status`, `income`, and `verbal` in the prediction model. The p-value for F-test is 0.01177 < 0.05, thus we have enough evidence to reject the null hypothesis.*  
+  
+2. Using the `sat` data:  
+
+```{r 2}
+data(sat, package='faraway')
+```
+
+(a) Fit a model with `total` sat score as the response and `expend`, `ratio` and `salary` as predictors. Test the hypothesis that β<sub>salary</sub> = 0. Test the hypothesis that β<sub>salary</sub> = β<sub>ratio</sub> = β<sub>expend</sub> = 0. Do any of these predictors have an effect on the response?  
+
+```{r}
+lm_sat <- lm(total~expend + ratio + salary, data=sat)
+lm_sat_null0 <- lm(total~expend+ratio, data=sat)
+anova(lm_sat_null0, lm_sat)
+```
+*The p-value of F-test is 0.06667, greater than the significant level of 0.05. Thus we don't have enough evidence to reject the hypothesis that there is no difference in the effect on the response between the models with and without the predictor `salary`, given both models have predictors `expend` and `ratio`.*
+
+```{r}
+lm_sat_null1 <- lm(total~1, data=sat)
+anova(lm_sat_null1, lm_sat)
+```
+*The p-value of F-test is 0.01209, less than the significant level of 0.05. Thus we have enough evidence to reject the null hypothesis that there is no difference in the model without any predictors predictors and the model with predictors `salary`, `ratio`, `expend`. These predictors do have effects over the response when they are considered together. Yet we are not sure if they are all important predictors in affecting the response.*
+
+(b) Now add `takers` to the model. Test the hypothesis that β<sub>takers</sub> = 0. Compare this model to the previous one using an F-test. Demonstrate that the F-test and t-test here are equivalent.
+
+```{r}
+lm_sat_adding_takers <- lm(total~expend + ratio + salary + takers, data=sat)
+anova(lm_sat, lm_sat_adding_takers)
+```
+*The p-value of F-test is 2.607e-16, far smaller than level 0.05. It means we have strong evidence to reject the null hypothesis that there is no difference between the models without and with the predictor `takers`, given predictors `expend`, `ratio`, `salary` are available in both models.*
+
+```{r}
+summary(lm_sat_adding_takers)
+```
+*The p-value of t-test is 2.61e-16, which is very close to the p-value of F-test 2.607e-16. And since there is only one predictor `takers` dropped for the null hypothesis compared to the alternative hypothesis, F-test and T-test are equivalent here, with the same conclusion that we have strong evidence to reject the null hypothesis the predictor `takers` make no difference in the model's effect to the response `total`. *
+
+```{r echo=FALSE}
+# fstat <- ((deviance(lm_sat)-deviance(lm_sat_adding_takers))/(df.residual(lm_sat)-df.residual(lm_sat_adding_takers)))/(deviance(lm_sat_adding_takers)/df.residual(lm_sat_adding_takers))
+# tstat <- coef(summary(lm_sat_adding_takers))["takers",1]/coef(summary(lm_sat_adding_takers))["takers",2]
+```  
+  
+3. Using the `teengamb` data, fit a model with `gamble` as the response and the other variables as predictors.  
+(a) Predict the amount that a male with average (given these data) `status`, `income` and `verbal` score would gamble along with an appropriate 95% CI.
+
+```{r}
+x <- data.frame(model.matrix(lm_teengamb))
+x <- subset(x, sex==0) # male
+x_mean <- apply(x,2,mean)
+pmean <- predict(lm_teengamb, new=data.frame(t(x_mean)), interval="confidence", level=0.95)
+```
+*The amount that a male with average status, income and verbal score would gamble is `r pmean[1]` in pounds per year, with 95% C.I. of (`r pmean[2]`, `r pmean[3]`).*
+
+(b) Repeat the prediction for a male with maximal values (for this data) of `status`, `income` and `verbal`  score. Which CI is wider and why is this result expected?
+
+```{r}
+x_max <- apply(x,2,max)
+pmax <- predict(lm_teengamb, new=data.frame(t(x_max)), interval="confidence", level=0.95)
+pmax
+```
+*The amount that a male with maximal status, income and verbal score would gamble is `r pmax[1]` in pounds per year, with 95% C.I. of (`r pmax[2]`, `r pmax[3]`). The CI for maximal values is wider for mean values, as when the data point move further from the middle of data, there will be a considerable increase in uncertainty, which makes the C.I. wider. *  
+
+(c) Fit a model with `sqrt(gamble)` as the response but with the same predictors. Now predict the response and give a 95% prediction interval for the individual in (a). Take care to give your answer in the original units of the response.
+
+```{r}
+lm_teengamb_sqrt <- lm(sqrt(gamble)~., data=teengamb)
+psqr <- predict(lm_teengamb_sqrt, new=data.frame(t(x_mean)), interval="confidence", level=0.95)^2
+psqr
+```
+*The amount that a male with maximal status, income and verbal score would gamble is `r psqr[1]` in pounds per year, with 95% C.I. of (`r psqr[2]`, `r psqr[3]`).*  
+
+(d) Repeat the prediction for the model in (c) for a female with `status=20, income=1, verbal = 10`. Comment on the credibility of the result.
+
+```{r}
+y <- c(1, 1, 20, 1, 10)
+names(y) <- c("X.Intercept", "sex", "status", "income", "verbal")
+psqrt_female <- predict(lm_teengamb_sqrt, new=data.frame(t(y)), interval="confidence", level=0.95)^2
+psqrt_female
+```
+*The amount that a female with `status=20, income=1, verbal = 10` would gamble is `r psqrt_female[1]` in pounds per year, with 95% C.I. of (`r psqrt_female[3]`, `r psqrt_female[2]`).*
