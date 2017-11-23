@@ -17,7 +17,7 @@ summary(lm_teengamb)
 ```
 
 (a) Which variables are statistically significant at the 5% level?  
-*Variables `sex` and `verbal` are statistically significant at the 5% level.*
+*Variables `sex` and `income` are statistically significant at the 5% level.*
 
 (b) What interpretation should be given to the coefficient for `sex`?   
 *A female is expected to spend 22.12 less on gambling in pounds per year compared to a male, given their performance on 'status', 'income', 'verbal' are all the same.*

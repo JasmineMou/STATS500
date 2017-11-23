@@ -1,0 +1,64 @@
+---
+title: 'STAT 500: HW7'
+author: "Jasmine Mou"
+date: "11/14/2017"
+output: pdf_document
+---
+
+1. Using the `teengamb` dataset with `gamble` as the response and the other variables as predictors. Implement the following variable selection methods to determine the “best” model:
+
+```{r}
+data(teengamb, package="faraway")
+lm_gamble <- lm(gamble~., data=teengamb)
+summary(lm_gamble)$coefficients
+```   
+
+(a) Backward elimination    
+*Set the $\alpha_{crit}$ to be 0.05. With the full model, we can see the variable `status` has the largest p-value over 0.05, and is not that significant in influencing `gamble`. Refit the model without `status`.*
+```{r}
+lm_gamble <- update(lm_gamble, . ~ . - status)
+summary(lm_gamble)$coefficients
+```
+*Now `verbal` becomes the predictor with the largest p-value over 0.05. Refit the model with the removal of `verbal`.*
+```{r}
+lm_gamble <- update(lm_gamble, . ~ . - verbal)
+summary(lm_gamble)$coefficients
+```
+*Up to this stage, all variable's p-value are less than $\alpha_{crit}$ except for the intercept. Thus the best model selected with backward elimination is: $$ gamble = 4.041 -21.634 * sex + 5.172 * income $$ *
+
+(b) AIC     
+*For each size of model p, do exhaustive search to find the variables that produce the minimum RSS.*
+```{r, warning=FALSE, message=FALSE}
+require(leaps)
+b <- regsubsets(gamble~., data=teengamb)
+rs <- summary(b)
+rs$which
+```
+*Compute and plot AIC. We can see that AIC is minimized by choosing 3 predictors, which are `income`, `sex`, and `verbal` from the logical matrix above. Fit the linear model with these predictors. According to the fitted summary coefficients, the best model determined by AIC will be $$ gamble = 24.139 + 4.898 * income - 22.960 * sex - 2.747 * verbal $$ *
+```{r, fig.width=4, fig.height=3}
+n = dim(teengamb)[1]
+p = dim(teengamb)[2]-1
+AIC <- n * log(rs$rss/n) + (2:(p+1))*2
+plot(AIC ~ I(1:p), ylab="AIC", xlab="Number of Predictors")
+
+lm_gamble <- lm(gamble~income+sex+verbal, data=teengamb)
+summary(lm_gamble)$coefficients
+```
+
+
+(c) Adjusted $R^2$    
+*Plot $R^2$ with the number of predictors used. We can see that $R^2$ achieves the maximum when 3 predictors are used. Thus the best model selected with Adjusted $R^2$ is the same model selected with AIC: $$ gamble = 24.139 + 4.898 * income - 22.960 * sex - 2.747 * verbal $$*
+```{r, fig.width=4, fig.height=3}
+plot(rs$adjr2 ~ I(1:p), xlab="Number of Predictors", ylab=expression(paste("Adjusted ", R^2)))
+which.max(rs$adjr2)
+```
+
+(d) Mallows $C_p$
+
+*Plot $C_p$ against the number of predictors used. We can see only the models with 3 and 4 predictors are on or below the $C_p$ = p+1 line, $C_p$ Statistic is minimized when the number of predictors is 3. Thus the best model selected with Mallows $C_p$ is the same model selected with AIC: $$ gamble = 24.139 + 4.898 * income - 22.960 * sex - 2.747 * verbal $$*
+```{r, fig.width=4, fig.height=3}
+plot(rs$cp ~ I(1:p), xlab="Number of Predictors", ylab=expression(paste(C[p], " Statistic")))
+abline(1,1)
+which.min(rs$cp)
+```
+

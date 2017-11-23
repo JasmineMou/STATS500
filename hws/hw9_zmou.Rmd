@@ -1,0 +1,22 @@
+---
+title: 'STAT 500: HW9'
+author: "Jasmine Mou"
+date: "11/21/2017"
+output: pdf_document
+---
+
+1. Using the `seatpos` data, perform a PCR analysis with `hipcenter` as the response and `HtShoes`, `Ht`, `Seated`, `Arm`, `Thigh` and `Leg` as predictors. Select an appropriate number of components and give an interpretation to those you choose. Add `Age` and `Weight` as predictors and repeat the analysis. Use both models to predict the response for predictors taking these values:
+```{r echo=FALSE, results='asis', warning=FALSE}
+library(knitr)
+df = data.frame(matrix(c('64.800 ', '263.700 ', '181.080 ', '178.560 ', '91.440 ', '35.640 ', '40.950 ', '38.790'), nrow=1))
+colnames(df)=c("Age", "Weight", "HtShoes", "Ht", "Seated", "Arm", "Thigh", "Leg")
+kable(df)
+```
+
+2. Take the `fat` data, and use the percentage of body fat, `siri`, as the response and the other variables, except `brozek` and `density` as potential predictors. Remove every tenth observation from the data for use as a test sample. Use the remaining data as a training sample building the following models:
+(a) Linear regression with all predictors 
+(b) Linear regression with variables selected using AIC
+(c) Principal component regression
+(e) Ridge Regression 
+(f) Lasso
+
