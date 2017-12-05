@@ -1,7 +1,7 @@
 ---
 title: 'STAT 500: HW9'
 author: "Jasmine Mou"
-date: "11/21/2017"
+date: "12/05/2017"
 output: pdf_document
 ---
 
@@ -13,10 +13,167 @@ colnames(df)=c("Age", "Weight", "HtShoes", "Ht", "Seated", "Arm", "Thigh", "Leg"
 kable(df)
 ```
 
+```{r, tidy=TRUE, message=FALSE, warning=FALSE, fig.height=3}
+library(pls)
+rmse <- function(x,y) sqrt(mean((x-y)^2))
+set.seed(123)
+
+data(seatpos, package="faraway")
+n <- nrow(seatpos)
+test_seq <- sample(n, n*0.25)
+grp_predictors_0 =  c("HtShoes", "Ht", "Seated", "Arm", "Thigh", "Leg")
+grp_all_0 = c("hipcenter", grp_predictors_0)
+grp_predictors_1 =  c("HtShoes", "Ht", "Seated", "Arm", "Thigh", "Leg", "Age", "Weight")
+grp_all_1 = c("hipcenter", grp_predictors_1)
+
+df_test = data.frame(matrix(c(181.080, 178.560, 91.440, 35.640, 40.950, 38.790, 64.800, 263.700), nrow=1))
+colnames(df_test)=c("HtShoes", "Ht", "Seated", "Arm", "Thigh", "Leg", "Age", "Weight")
+
+cal_pcr<-function(grp_all, grp_predictors){
+  # assign train and test randomly for cross validation
+	sp <- seatpos[, grp_all]
+	p <- ncol(sp) - 1
+	train_sp <- sp[-test_seq,]
+	test_sp <- sp[test_seq,]
+
+	## use pcr + RMSEP plot
+	pcr_sp <- pcr(hipcenter ~., data=train_sp, validation="CV", ncomp=p)
+	pcrCV_sp <- RMSEP(pcr_sp, estimate="CV")
+	plot(pcrCV_sp, xlab="# of PCs", ylab="RMSEP", main=paste("# of Predictors:", p))
+	pcr_sp$nc_sp <- which.min(pcrCV_sp$val)-1   
+	pcr_sp$ypred_sp <- predict(pcr_sp, test_sp[,grp_predictors], ncomp=pcr_sp$nc_sp)
+	pcr_sp$rmse <- rmse(pcr_sp$ypred_sp, test_sp$hipcenter)
+
+	pcr_sp$exp <- explvar(pcr_sp)
+	# pcr_sp$ld <- loadings(pcr_sp)
+	# loadingplot(pcr_sp, comps=1:3, legendpos="topright")
+	pcr_sp$acc <- 0
+	for(i in 1:pcr_sp$nc_sp){
+	  pcr_sp$acc = pcr_sp$acc + pcr_sp$exp[i]
+	}
+	
+	return(pcr_sp)
+}
+par(mfrow=c(1,2))
+pcr_sp_0 <- cal_pcr(grp_all_0, grp_predictors_0) # rmse = 37.34921, seed = 123
+pcr_sp_1 <- cal_pcr(grp_all_1, grp_predictors_1) # rmse = 35.81502, seed = 123
+pcr_sp_fit <- predict(pcr_sp_1, df_test, ncomp=pcr_sp_1$nc_sp)
+```
+
+
+*Perform PCR without scaling and use cross-validation over the train data to choose the number of components. Draw a RMSE vs number of components plot for visualization. *
+
+*With only 6 predictors, we choose the number of components to be `r pcr_sp_0$nc_sp` according to the plot. The proportion of variability explained by the first `r pcr_sp_0$nc_sp` components is `r round(pcr_sp_0$acc,2)`%. The RMSE of the model over the test data is `r round(pcr_sp_0$rmse,2)`. *
+
+*With 8 predictors, we choose the number of components to be `r pcr_sp_1$nc_sp` according to the plot. The proportion of variability explained by the first `r pcr_sp_1$nc_sp` components is `r round(pcr_sp_1$acc,2)`%. The RMSE of the model over the test data is `r round(pcr_sp_1$rmse,2)`. *
+
+*The predicted response of the sample is `r round(pcr_sp_fit,4)`.*
+
+<!-- *Use the prcomp() method in R to do the PCR analysis.* -->
+<!-- ```{r} -->
+<!-- cal_rmse_prcomp<-function(grp_all, grp_predictors, n_comp_sp){ -->
+<!--   # assign train and test randomly for cross validation -->
+<!-- 	sp <- seatpos[, grp_all] -->
+<!-- 	train_sp <- sp[-test_seq,] -->
+<!-- 	test_sp <- sp[test_seq, ] -->
+
+<!-- 	pcr_sp <- prcomp(seatpos[-test_seq, grp_predictors], scale=TRUE) -->
+<!-- 	summary(pcr_sp) -->
+<!-- 	par(mfrow=c(1,2)) -->
+<!-- 	biplot(pcr_sp) -->
+<!-- 	plot(pcr_sp$sdev,type="l",ylab="SD of PC", xlab="PC number") -->
+
+<!-- 	lm_pcr_sp <- lm(hipcenter ~ pcr_sp$x[,1:n_comp_sp], data=train_sp) -->
+
+<!-- 	get_z <- function(pcr, i, test){ -->
+<!-- 	  return(pcr$rotation[,i] %*% t(test[, grp_predictors])) -->
+<!-- 	} -->
+<!-- 	z = NULL -->
+<!-- 	for (i in 1:n_comp_sp){ -->
+<!-- 	  z_i = get_z(pcr_sp, i, test_sp) -->
+<!-- 	  z = rbind(z, z_i) -->
+<!-- 	} -->
+
+<!-- 	ypred_sp <- coef(lm_pcr_sp) %*% rbind(1, z) -->
+<!-- 	# or: ypred_sp_0 <- predict(pcr_sp, test_sp) %*% rbind(1, z) -->
+<!-- 	result <- rmse(ypred_sp, test_sp$hipcenter)  -->
+
+<!-- 	return(result) -->
+<!-- } -->
+<!-- ``` -->
+<!-- *With first few predictors. By drawing the screeplot, we can see there is an elbow at the n=2, which is chosen as the number of components.* -->
+<!-- ```{r} -->
+<!-- rmse_prcomp_sp_0 <- cal_rmse_prcomp(grp_all_0, grp_predictors_0, 2) # seed=123, n=2, 166.4093, 5841.319 -->
+<!-- ``` -->
+<!-- *Add 2 more predictors. By drawing the screeplot, we can see there is an elbow at the n=6, which is chosen as the number of components.* -->
+<!-- ```{r} -->
+<!-- rmse_prcomp_sp_1 <- cal_rmse_prcomp(grp_all_1, grp_predictors_1, 6) # seed=123, n=6, 4853.191 -->
+<!-- ``` -->
+
+
 2. Take the `fat` data, and use the percentage of body fat, `siri`, as the response and the other variables, except `brozek` and `density` as potential predictors. Remove every tenth observation from the data for use as a test sample. Use the remaining data as a training sample building the following models:
-(a) Linear regression with all predictors 
-(b) Linear regression with variables selected using AIC
-(c) Principal component regression
-(e) Ridge Regression 
-(f) Lasso
+```{r, tidy=TRUE}
+data(fat, package="faraway")
+n <- nrow(fat)
+p <- ncol(fat) - 3
+test_seq <- seq(10, n, by=10)
+grp_predictors_fat = colnames(fat)[!colnames(fat) %in% c("brozek", "density")]
+train_fat <- fat[-test_seq, grp_predictors_fat]
+test_fat <- fat[test_seq, grp_predictors_fat]
+```
+(a) Linear regression with all predictors. 
+```{r, tidy=TRUE}
+lm_fat <- lm(siri~., data=train_fat)
+rmse_lm_fat_train <- rmse(lm_fat$fit, train_fat$siri)
+rmse_lm_fat_test <- rmse(predict(lm_fat, test_fat[,-1]), test_fat$siri)
+```
+(b) Linear regression with variables selected using AIC.
+```{r, tidy=TRUE}
+lmAIC_fat <- step(lm_fat)
+rmse_lmAIC_fat_train <- rmse(lmAIC_fat$fit, train_fat$siri)
+rmse_lmAIC_fat_test <- rmse(predict(lmAIC_fat, test_fat[,-1]), test_fat$siri)
+```
+(c) Principal component regression.
+```{r, tidy=TRUE, fig.height=3}
+pcr_fat <- pcr(siri ~., data=train_fat, validation="CV", ncomp=p)
+pcrCV_fat <- RMSEP(pcr_fat, estimate="CV")
+plot(pcrCV_fat, xlab="# of PCs", ylab="RMSEP", main=paste("# of Predictors:", p))
+pcr_fat$nc <- which.min(pcrCV_fat$val)-1
+rmse_pcr_fat_train <- rmse(predict(pcr_fat, train_fat[,-1], ncomp=pcr_fat$nc), train_fat$siri)
+rmse_pcr_fat_test <- rmse(predict(pcr_fat, test_fat[,-1], ncomp=pcr_fat$nc), test_fat$siri)
+```     
+*From the plot we see the number of components is chosen at n=`r pcr_fat$nc`.*
+
+(e) Ridge Regression. 
+```{r, tidy=TRUE, message=FALSE}
+require(MASS)
+rg_fat <- lm.ridge(siri~. , data=train_fat, lambda = seq(0, 5, len=2000))
+# matplot(rg_fat$lambda, coef(rg_fat), type="l", xlab=expression(lambda) ,ylab=expression(hat(beta)),col=1)
+rg_fat$f_lambda <- which.min(rg_fat$GCV) # 0.01127654 
+rmse_rg_fat_train <- rmse(cbind(1,as.matrix(train_fat[,-1])) %*% coef(rg_fat)[rg_fat$f_lambda,], train_fat$siri)
+rmse_rg_fat_test <- rmse(cbind(1,as.matrix(test_fat[,-1])) %*% coef(rg_fat)[rg_fat$f_lambda,], test_fat$siri)
+```
+
+(f) Lasso.
+```{r, tidy=TRUE, message=FALSE, fig.height=3}
+require(lars)
+train_fat_lsx <- as.matrix(train_fat[,-1])
+train_fat_lsy <- train_fat[,1]
+test_fat_lsx <- as.matrix(test_fat[,-1])
+ls_fat <- lars(x=train_fat_lsx, y=train_fat_lsy)
+lsCV_fat <- cv.lars(x=train_fat_lsx, y=train_fat_lsy)
+ls_fat$t <- lsCV_fat$index[which.min(lsCV_fat$cv)]
+# ls_fat$coef <- predict(ls_fat, type="coef", s=ls_fat$t, mode="fraction")$coef # to get the coefficients
+# plot(ls_fat)
+rmse_ls_fat_train <- rmse(predict(ls_fat, train_fat_lsx, s=ls_fat$t, mode="fraction")$fit, train_fat$siri)
+rmse_ls_fat_test <- rmse(predict(ls_fat, test_fat_lsx, s=ls_fat$t, mode="fraction")$fit, test_fat$siri)
+```
+
+Use the models you find to predict the response in the test sample. Make a report on the performances of the models.    
+*Model performance: in terms of the test data, the performance rank is PCR > LASSO > AIC > Ridge > LR.*     
+```{r, tidy=TRUE}
+df_report = data.frame(LR=c(rmse_lm_fat_train, rmse_lm_fat_test), AIC=c(rmse_lmAIC_fat_train, rmse_lmAIC_fat_test), PCR=c(rmse_pcr_fat_train, rmse_pcr_fat_test), Ridge=c(rmse_rg_fat_train, rmse_rg_fat_test), LASSO=c(rmse_ls_fat_train, rmse_ls_fat_test))
+rownames(df_report) = c("train", "test")
+kable(df_report, digits=4)
+```
 
